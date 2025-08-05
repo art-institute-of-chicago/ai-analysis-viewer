@@ -1,0 +1,874 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Analysis Viewer</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .header h1 {
+            margin: 0 0 15px 0;
+            font-size: 2em;
+            font-weight: 300;
+        }
+
+        .search-container {
+            display: flex;
+            gap: 10px;
+            max-width: 400px;
+            margin: 0 auto;
+        }
+
+        .search-input {
+            flex: 1;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            background: rgba(255,255,255,0.9);
+        }
+
+        .search-button {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.3);
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.2s ease;
+        }
+
+        .search-button:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .search-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .artwork-info {
+            padding: 15px 20px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .artwork-info h2 {
+            margin: 0 0 5px 0;
+            color: #495057;
+            font-size: 1.3em;
+        }
+
+        .artwork-info p {
+            margin: 0;
+            color: #6c757d;
+            font-size: 0.9em;
+        }
+
+        .loading {
+            padding: 40px;
+            text-align: center;
+            color: #6c757d;
+        }
+
+        .error {
+            padding: 20px;
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+            border-radius: 6px;
+            margin: 20px;
+        }
+
+        .image-container {
+            position: relative;
+            display: inline-block;
+            margin: 20px;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 15px rgba(0,0,0,0.15);
+        }
+
+        .artwork-image {
+            display: block;
+            max-width: 100%;
+            height: auto;
+        }
+
+        .bounding-box {
+            position: absolute;
+            border: 2px solid;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            opacity: 0.7;
+        }
+
+        .bounding-box:hover {
+            opacity: 1;
+            border-width: 3px;
+            z-index: 10;
+        }
+
+        .dense-caption { border-color: #ff6b6b; }
+        .people-location { border-color: #4ecdc4; }
+
+        .tooltip {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            max-width: 200px;
+            z-index: 1000;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+
+        .tooltip::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            margin-left: -5px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: rgba(0, 0, 0, 0.9) transparent transparent transparent;
+        }
+
+        .legend {
+            padding: 20px;
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+            background: #f8f9fa;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            color: #495057;
+        }
+
+        .legend-color {
+            width: 20px;
+            height: 3px;
+            border-radius: 2px;
+        }
+
+        .stats {
+            padding: 20px;
+            text-align: center;
+            color: #6c757d;
+            font-size: 14px;
+        }
+
+        .controls {
+            padding: 20px;
+            background: #f8f9fa;
+            border-top: 1px solid #e9ecef;
+        }
+
+        .toggle-section {
+            margin-bottom: 20px;
+        }
+
+        .toggle-section h3 {
+            margin: 0 0 10px 0;
+            color: #495057;
+            font-size: 1.1em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .toggle-button {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 5px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: background-color 0.2s ease;
+        }
+
+        .toggle-button.active {
+            background: #28a745;
+        }
+
+        .toggle-button:hover {
+            opacity: 0.8;
+        }
+
+        .captions-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .caption-item {
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            padding: 12px;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+
+        .caption-item:hover {
+            border-color: #adb5bd;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .caption-item.dense-caption {
+            border-left: 4px solid #ff6b6b;
+        }
+
+        .caption-item.people-location {
+            border-left: 4px solid #4ecdc4;
+        }
+
+        .caption-text {
+            font-weight: 500;
+            color: #495057;
+            margin-bottom: 5px;
+        }
+
+        .caption-confidence {
+            font-size: 12px;
+            color: #6c757d;
+        }
+
+        .confidence-bar {
+            width: 100%;
+            height: 4px;
+            background: #e9ecef;
+            border-radius: 2px;
+            margin-top: 5px;
+            overflow: hidden;
+        }
+
+        .confidence-fill {
+            height: 100%;
+            transition: width 0.3s ease;
+        }
+
+        .dense-caption .confidence-fill {
+            background: #ff6b6b;
+        }
+
+        .people-location .confidence-fill {
+            background: #4ecdc4;
+        }
+
+        .content {
+            display: none;
+        }
+
+        .content.loaded {
+            display: block;
+        }
+
+        .examples {
+            margin-top: 10px;
+            font-size: 12px;
+            opacity: 0.8;
+        }
+
+        .example-link {
+            color: rgba(255,255,255,0.8);
+            text-decoration: underline;
+            cursor: pointer;
+            margin: 0 5px;
+        }
+
+        .example-link:hover {
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Dynamic Artwork Analysis Viewer</h1>
+            <div class="search-container">
+                <input type="text"
+                       class="search-input"
+                       id="artworkId"
+                       placeholder="Enter Artwork ID (e.g., 44072)"
+                       value="44072">
+                <button class="search-button" id="loadButton" onclick="loadArtwork()">
+                    Load Artwork
+                </button>
+            </div>
+            <div class="examples">
+                Try examples:
+                <span class="example-link" onclick="loadExample('44072')">44072</span>
+                <span class="example-link" onclick="loadExample('27992')">27992</span>
+                <span class="example-link" onclick="loadExample('109439')">109439</span>
+            </div>
+        </div>
+
+        <div id="loading" class="loading" style="display: none;">
+            <p>Loading artwork data...</p>
+        </div>
+
+        <div id="error" class="error" style="display: none;"></div>
+
+        <div id="content" class="content">
+            <div class="artwork-info" id="artworkInfo">
+                <h2 id="artworkTitle">Loading...</h2>
+                <p id="artworkDetails">Loading artwork details...</p>
+            </div>
+
+            <div style="text-align: center;">
+                <div class="image-container" id="imageContainer">
+                    <img src=""
+                         alt="Artwork"
+                         class="artwork-image"
+                         id="artworkImage"
+                         style="display: none;">
+                </div>
+            </div>
+
+            <div class="legend">
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #ff6b6b;"></div>
+                    <span>Dense Captions (AI Scene Analysis)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #4ecdc4;"></div>
+                    <span>People Locations (AI Person Detection)</span>
+                </div>
+            </div>
+
+            <div class="stats" id="stats">
+                No analysis data loaded
+            </div>
+
+            <div class="controls">
+                <div class="toggle-section">
+                    <h3>
+                        <span>Visibility Controls</span>
+                        <button class="toggle-button active" id="toggleDenseCaption" onclick="toggleBoxType('dense-caption')">
+                            Scene Analysis
+                        </button>
+                        <button class="toggle-button active" id="togglePeopleLocation" onclick="toggleBoxType('people-location')">
+                            Person Detection
+                        </button>
+                    </h3>
+                </div>
+
+                <div class="toggle-section">
+                    <h3>Scene Analysis Captions (AI-generated descriptions)</h3>
+                    <div class="captions-list" id="denseCaptionsList"></div>
+                </div>
+
+                <div class="toggle-section">
+                    <h3>Person Detection Results</h3>
+                    <div class="captions-list" id="peopleLocationsList"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="tooltip" id="tooltip"></div>
+
+    <script>
+        let currentArtworkData = null;
+        const tooltip = document.getElementById('tooltip');
+        const imageContainer = document.getElementById('imageContainer');
+        const artworkImage = document.getElementById('artworkImage');
+
+        // Visibility state
+        const visibility = {
+            'dense-caption': true,
+            'people-location': true
+        };
+
+        // Load artwork data from API with CORS proxy
+        async function loadArtwork() {
+            const artworkId = document.getElementById('artworkId').value.trim();
+            if (!artworkId) {
+                showError('Please enter an artwork ID');
+                return;
+            }
+
+            showLoading(true);
+            hideError();
+            hideContent();
+
+            try {
+                // Try direct API call first, then fallback to CORS proxy
+                let response;
+                const apiUrl = `https://api-test.artic.edu/ai/v1/artworks/${artworkId}`;
+
+                try {
+                    response = await fetch(apiUrl);
+                } catch (corsError) {
+                    console.log('Direct API call failed, trying CORS proxy...');
+                    // Use CORS proxy as fallback
+                    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(apiUrl)}`;
+                    const proxyResponse = await fetch(proxyUrl);
+
+                    if (!proxyResponse.ok) {
+                        throw new Error(`Proxy error: HTTP ${proxyResponse.status}`);
+                    }
+
+                    const proxyData = await proxyResponse.json();
+                    const artworkData = JSON.parse(proxyData.contents);
+                    currentArtworkData = artworkData;
+
+                    await displayArtwork(artworkData);
+                    showContent();
+                    return;
+                }
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const artworkData = await response.json();
+                currentArtworkData = artworkData;
+
+                await displayArtwork(artworkData);
+                showContent();
+
+            } catch (error) {
+                console.error('Error loading artwork:', error);
+                if (error.message.includes('CORS') || error.message.includes('fetch')) {
+                    showError(`CORS error: Unable to fetch data directly from the API. This is a browser security restriction. Try using a different artwork ID or accessing this from a server environment.`);
+                } else {
+                    showError(`Failed to load artwork: ${error.message}`);
+                }
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // Display artwork data
+        async function displayArtwork(artworkData) {
+            const data = artworkData.data;
+            const embeddings = artworkData.embeddings;
+
+            // Update artwork info
+            document.getElementById('artworkTitle').textContent = data.title || 'Untitled';
+
+            const artist = data.artists && data.artists.length > 0 ? data.artists[0] : null;
+            const artistText = artist ? `${artist.title} (${artist.birth_date}-${artist.death_date})` : 'Unknown Artist';
+            const dateText = data.date_display || 'Date unknown';
+            const mediumText = data.medium_display || 'Medium unknown';
+
+            document.getElementById('artworkDetails').textContent =
+                `${artistText} • ${dateText} • ${mediumText}`;
+
+            // Load image
+            const imageUrl = embeddings?.image?.data?.image_url;
+            if (imageUrl) {
+                await loadImage(imageUrl);
+            } else {
+                throw new Error('No image URL found in artwork data');
+            }
+        }
+
+        // Load and display image
+        function loadImage(imageUrl) {
+            return new Promise((resolve, reject) => {
+                artworkImage.onload = () => {
+                    artworkImage.style.display = 'block';
+                    console.log('Image loaded, dimensions:', artworkImage.offsetWidth, 'x', artworkImage.offsetHeight);
+                    // Small delay to ensure image is fully rendered
+                    setTimeout(() => {
+                        createBoundingBoxes();
+                        resolve();
+                    }, 100);
+                };
+                artworkImage.onerror = () => {
+                    reject(new Error('Failed to load image'));
+                };
+                artworkImage.src = imageUrl;
+            });
+        }
+
+        function createBoundingBoxes() {
+            if (!currentArtworkData?.embeddings?.image?.data?.description_generation_data?.analysis_data) {
+                document.getElementById('stats').innerHTML = 'No analysis data available for this artwork';
+                return;
+            }
+
+            // Check if image is properly loaded
+            if (artworkImage.offsetWidth === 0 || artworkImage.offsetHeight === 0) {
+                console.log('Image not ready, retrying in 200ms...');
+                setTimeout(createBoundingBoxes, 200);
+                return;
+            }
+
+            // Clear existing boxes
+            const existingBoxes = imageContainer.querySelectorAll('.bounding-box');
+            existingBoxes.forEach(box => box.remove());
+
+            const analysisData = currentArtworkData.embeddings.image.data.description_generation_data.analysis_data;
+
+            // Debug: Log the analysis data structure
+            console.log('Analysis data:', analysisData);
+            console.log('Image dimensions:', artworkImage.offsetWidth, 'x', artworkImage.offsetHeight);
+
+            // Get original image dimensions from the analysis or use current image size
+            let originalWidth = artworkImage.offsetWidth;
+            let originalHeight = artworkImage.offsetHeight;
+
+            // Try to determine original dimensions from bounding boxes
+            if (analysisData.denseCaption && analysisData.denseCaption.length > 0) {
+                let maxX = 0, maxY = 0;
+                analysisData.denseCaption.forEach(item => {
+                    if (item.boundingBox) {
+                        maxX = Math.max(maxX, item.boundingBox.x + item.boundingBox.w);
+                        maxY = Math.max(maxY, item.boundingBox.y + item.boundingBox.h);
+                    }
+                });
+                if (maxX > 0 && maxY > 0) {
+                    originalWidth = maxX;
+                    originalHeight = maxY;
+                }
+            }
+
+            console.log('Original dimensions estimate:', originalWidth, 'x', originalHeight);
+
+            // Calculate scale factors
+            const scaleX = artworkImage.offsetWidth / originalWidth;
+            const scaleY = artworkImage.offsetHeight / originalHeight;
+
+            console.log('Scale factors:', scaleX, scaleY);
+
+            // Create dense caption boxes
+            if (analysisData.denseCaption && analysisData.denseCaption.length > 0) {
+                console.log('Creating', analysisData.denseCaption.length, 'dense caption boxes');
+                analysisData.denseCaption.forEach((item, index) => {
+                    if (item.boundingBox) {
+                        console.log(`Dense caption ${index}:`, item.text, item.boundingBox);
+                        const box = createBox(item.boundingBox, scaleX, scaleY, 'dense-caption');
+                        box.dataset.text = item.text;
+                        box.dataset.confidence = (item.confidence * 100).toFixed(1);
+                        box.dataset.type = 'Scene Analysis';
+                        box.dataset.index = index;
+                        imageContainer.appendChild(box);
+                    }
+                });
+            }
+
+            // Create people location boxes
+            if (analysisData.peopleLocation && analysisData.peopleLocation.length > 0) {
+                console.log('Creating', analysisData.peopleLocation.length, 'people location boxes');
+                analysisData.peopleLocation.forEach((item, index) => {
+                    if (item.boundingBox) {
+                        console.log(`People location ${index}:`, item.boundingBox);
+                        const box = createBox(item.boundingBox, scaleX, scaleY, 'people-location');
+                        box.dataset.text = `Person detected (${(item.confidence * 100).toFixed(1)}% confidence)`;
+                        box.dataset.confidence = (item.confidence * 100).toFixed(1);
+                        box.dataset.type = 'Person Detection';
+                        box.dataset.index = index;
+                        imageContainer.appendChild(box);
+                    }
+                });
+            }
+
+            // Update stats and create caption lists
+            updateStats();
+            createCaptionLists();
+        }
+
+        function getOriginalWidth(analysisData) {
+            // Try to find the largest bounding box width as reference
+            let maxWidth = 0;
+            if (analysisData.denseCaption) {
+                analysisData.denseCaption.forEach(item => {
+                    const right = item.boundingBox.x + item.boundingBox.w;
+                    maxWidth = Math.max(maxWidth, right);
+                });
+            }
+            return maxWidth || null;
+        }
+
+        function getOriginalHeight(analysisData) {
+            // Try to find the largest bounding box height as reference
+            let maxHeight = 0;
+            if (analysisData.denseCaption) {
+                analysisData.denseCaption.forEach(item => {
+                    const bottom = item.boundingBox.y + item.boundingBox.h;
+                    maxHeight = Math.max(maxHeight, bottom);
+                });
+            }
+            return maxHeight || null;
+        }
+
+        function createBox(boundingBox, scaleX, scaleY, className) {
+            const box = document.createElement('div');
+            box.className = `bounding-box ${className}`;
+
+            // Scale and position the box
+            const scaledX = boundingBox.x * scaleX;
+            const scaledY = boundingBox.y * scaleY;
+            const scaledW = boundingBox.w * scaleX;
+            const scaledH = boundingBox.h * scaleY;
+
+            console.log(`Creating ${className} box:`, {
+                original: boundingBox,
+                scaled: { x: scaledX, y: scaledY, w: scaledW, h: scaledH },
+                scaleFactors: { scaleX, scaleY }
+            });
+
+            box.style.left = `${scaledX}px`;
+            box.style.top = `${scaledY}px`;
+            box.style.width = `${scaledW}px`;
+            box.style.height = `${scaledH}px`;
+
+            // Set initial visibility
+            box.style.display = visibility[className] ? 'block' : 'none';
+
+            // Add hover events
+            box.addEventListener('mouseenter', showTooltip);
+            box.addEventListener('mouseleave', hideTooltip);
+            box.addEventListener('mousemove', moveTooltip);
+
+            // Add some visual debugging - make boxes more visible temporarily
+            box.style.backgroundColor = className === 'dense-caption' ? 'rgba(255, 107, 107, 0.1)' : 'rgba(78, 205, 196, 0.1)';
+
+            return box;
+        }
+
+        function toggleBoxType(type) {
+            visibility[type] = !visibility[type];
+            const button = document.getElementById(type === 'dense-caption' ? 'toggleDenseCaption' : 'togglePeopleLocation');
+
+            // Update button appearance
+            if (visibility[type]) {
+                button.classList.add('active');
+            } else {
+                button.classList.remove('active');
+            }
+
+            // Show/hide boxes
+            const boxes = imageContainer.querySelectorAll(`.bounding-box.${type}`);
+            boxes.forEach(box => {
+                box.style.display = visibility[type] ? 'block' : 'none';
+            });
+        }
+
+        function createCaptionLists() {
+            if (!currentArtworkData?.embeddings?.image?.data?.description_generation_data?.analysis_data) {
+                return;
+            }
+
+            const analysisData = currentArtworkData.embeddings.image.data.description_generation_data.analysis_data;
+
+            // Create dense caption list
+            const denseCaptionsList = document.getElementById('denseCaptionsList');
+            denseCaptionsList.innerHTML = '';
+
+            if (analysisData.denseCaption && analysisData.denseCaption.length > 0) {
+                analysisData.denseCaption.forEach((item, index) => {
+                    const captionItem = document.createElement('div');
+                    captionItem.className = 'caption-item dense-caption';
+                    captionItem.innerHTML = `
+                        <div class="caption-text">${item.text}</div>
+                        <div class="caption-confidence">
+                            Confidence: ${(item.confidence * 100).toFixed(1)}% |
+                            Region: ${item.boundingBox.w}×${item.boundingBox.h}px at (${item.boundingBox.x}, ${item.boundingBox.y})
+                        </div>
+                        <div class="confidence-bar">
+                            <div class="confidence-fill" style="width: ${item.confidence * 100}%"></div>
+                        </div>
+                    `;
+
+                    captionItem.addEventListener('click', () => highlightBox('dense-caption', index));
+                    denseCaptionsList.appendChild(captionItem);
+                });
+            } else {
+                denseCaptionsList.innerHTML = '<p style="color: #6c757d; font-style: italic;">No scene analysis data available</p>';
+            }
+
+            // Create people location list
+            const peopleLocationsList = document.getElementById('peopleLocationsList');
+            peopleLocationsList.innerHTML = '';
+
+            if (analysisData.peopleLocation && analysisData.peopleLocation.length > 0) {
+                analysisData.peopleLocation.forEach((item, index) => {
+                    const captionItem = document.createElement('div');
+                    captionItem.className = 'caption-item people-location';
+                    captionItem.innerHTML = `
+                        <div class="caption-text">Person Detection #${index + 1}</div>
+                        <div class="caption-confidence">
+                            Confidence: ${(item.confidence * 100).toFixed(1)}% |
+                            Region: ${item.boundingBox.w}×${item.boundingBox.h}px at (${item.boundingBox.x}, ${item.boundingBox.y})
+                        </div>
+                        <div class="confidence-bar">
+                            <div class="confidence-fill" style="width: ${item.confidence * 100}%"></div>
+                        </div>
+                    `;
+
+                    captionItem.addEventListener('click', () => highlightBox('people-location', index));
+                    peopleLocationsList.appendChild(captionItem);
+                });
+            } else {
+                peopleLocationsList.innerHTML = '<p style="color: #6c757d; font-style: italic;">No person detection data available</p>';
+            }
+        }
+
+        function highlightBox(type, index) {
+            // Remove existing highlights
+            const allBoxes = imageContainer.querySelectorAll('.bounding-box');
+            allBoxes.forEach(box => {
+                box.style.boxShadow = '';
+                box.style.zIndex = '';
+            });
+
+            // Highlight the selected box
+            const targetBox = imageContainer.querySelector(`.bounding-box.${type}[data-index="${index}"]`);
+            if (targetBox && visibility[type]) {
+                targetBox.style.boxShadow = '0 0 20px rgba(255, 255, 0, 0.8), inset 0 0 20px rgba(255, 255, 0, 0.3)';
+                targetBox.style.zIndex = '100';
+
+                // Scroll the box into view
+                targetBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+                // Remove highlight after 3 seconds
+                setTimeout(() => {
+                    targetBox.style.boxShadow = '';
+                    targetBox.style.zIndex = '';
+                }, 3000);
+            }
+        }
+
+        function showTooltip(e) {
+            const box = e.target;
+            const text = box.dataset.text;
+            const confidence = box.dataset.confidence;
+            const type = box.dataset.type;
+
+            tooltip.innerHTML = `
+                <strong>${type}</strong><br>
+                ${text}<br>
+                <em>Confidence: ${confidence}%</em>
+            `;
+            tooltip.style.opacity = '1';
+            moveTooltip(e);
+        }
+
+        function hideTooltip() {
+            tooltip.style.opacity = '0';
+        }
+
+        function moveTooltip(e) {
+            const containerRect = imageContainer.getBoundingClientRect();
+            const tooltipRect = tooltip.getBoundingClientRect();
+
+            let left = e.clientX - containerRect.left - tooltipRect.width / 2;
+            let top = e.clientY - containerRect.top - tooltipRect.height - 10;
+
+            // Keep tooltip within container bounds
+            left = Math.max(10, Math.min(left, imageContainer.offsetWidth - tooltipRect.width - 10));
+            if (top < 0) {
+                top = e.clientY - containerRect.top + 10;
+            }
+
+            tooltip.style.left = `${left}px`;
+            tooltip.style.top = `${top}px`;
+        }
+
+        function updateStats() {
+            if (!currentArtworkData?.embeddings?.image?.data?.description_generation_data?.analysis_data) {
+                document.getElementById('stats').innerHTML = 'No analysis data available';
+                return;
+            }
+
+            const analysisData = currentArtworkData.embeddings.image.data.description_generation_data.analysis_data;
+            const denseCaptionCount = analysisData.denseCaption ? analysisData.denseCaption.length : 0;
+            const peopleLocationCount = analysisData.peopleLocation ? analysisData.peopleLocation.length : 0;
+            const totalBoxes = denseCaptionCount + peopleLocationCount;
+
+            document.getElementById('stats').innerHTML = `
+                Analysis contains ${totalBoxes} detected regions:
+                ${denseCaptionCount} scene descriptions and ${peopleLocationCount} person detections
+            `;
+        }
+
+        // UI Helper functions
+        function showLoading(show) {
+            document.getElementById('loading').style.display = show ? 'block' : 'none';
+            document.getElementById('loadButton').disabled = show;
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('error');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+        }
+
+        function hideError() {
+            document.getElementById('error').style.display = 'none';
+        }
+
+        function showContent() {
+            document.getElementById('content').classList.add('loaded');
+        }
+
+        function hideContent() {
+            document.getElementById('content').classList.remove('loaded');
+        }
+
+        function loadExample(id) {
+            document.getElementById('artworkId').value = id;
+            loadArtwork();
+        }
+
+        // Event listeners
+        document.getElementById('artworkId').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                loadArtwork();
+            }
+        });
+
+        // Recreate boxes on window resize
+        window.addEventListener('resize', function() {
+            if (currentArtworkData) {
+                createBoundingBoxes();
+            }
+        });
+
+        // Load default artwork on page load
+        window.addEventListener('load', function() {
+            loadArtwork();
+        });
+    </script>
+</body>
+</html>
