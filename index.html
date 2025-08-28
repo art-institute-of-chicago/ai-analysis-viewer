@@ -433,26 +433,7 @@
                 let response;
                 const apiUrl = `https://api-test.artic.edu/ai/v1/artworks/${artworkId}`;
 
-                try {
                     response = await fetch(apiUrl);
-                } catch (corsError) {
-                    console.log('Direct API call failed, trying CORS proxy...');
-                    // Use CORS proxy as fallback
-                    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(apiUrl)}`;
-                    const proxyResponse = await fetch(proxyUrl);
-
-                    if (!proxyResponse.ok) {
-                        throw new Error(`Proxy error: HTTP ${proxyResponse.status}`);
-                    }
-
-                    const proxyData = await proxyResponse.json();
-                    const artworkData = JSON.parse(proxyData.contents);
-                    currentArtworkData = artworkData;
-
-                    await displayArtwork(artworkData);
-                    showContent();
-                    return;
-                }
 
                 if (!response.ok) {
                     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
