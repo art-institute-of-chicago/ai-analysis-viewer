@@ -83,7 +83,7 @@
         }
 
         .artwork-info p {
-            margin: 0;
+            margin: 0 0 10px 0;
             color: #6c757d;
             font-size: 0.9em;
         }
@@ -349,6 +349,7 @@
             <div class="artwork-info" id="artworkInfo">
                 <h2 id="artworkTitle">Loading...</h2>
                 <p id="artworkDetails">Loading artwork details...</p>
+                <p id="artworkDescription">Loading artwork description...</p>
             </div>
 
             <div style="text-align: center;">
@@ -433,26 +434,7 @@
                 let response;
                 const apiUrl = `https://api-test.artic.edu/ai/v1/artworks/${artworkId}`;
 
-                try {
-                    response = await fetch(apiUrl);
-                } catch (corsError) {
-                    console.log('Direct API call failed, trying CORS proxy...');
-                    // Use CORS proxy as fallback
-                    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(apiUrl)}`;
-                    const proxyResponse = await fetch(proxyUrl);
-
-                    if (!proxyResponse.ok) {
-                        throw new Error(`Proxy error: HTTP ${proxyResponse.status}`);
-                    }
-
-                    const proxyData = await proxyResponse.json();
-                    const artworkData = JSON.parse(proxyData.contents);
-                    currentArtworkData = artworkData;
-
-                    await displayArtwork(artworkData);
-                    showContent();
-                    return;
-                }
+                response = await fetch(apiUrl);
 
                 if (!response.ok) {
                     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -488,9 +470,14 @@
             const artistText = artist ? `${artist.title} (${artist.birth_date}-${artist.death_date})` : 'Unknown Artist';
             const dateText = data.date_display || 'Date unknown';
             const mediumText = data.medium_display || 'Medium unknown';
+            const aiDescriptionText = embeddings.text.data.description || 'No AI description';
+            const aiGeneratedAt = embeddings.text.data.generated_at || '';
 
             document.getElementById('artworkDetails').textContent =
                 `${artistText} • ${dateText} • ${mediumText}`;
+
+            document.getElementById('artworkDescription').textContent =
+                `AI description: ${aiDescriptionText} • Generated at ${aiGeneratedAt}`;
 
             // Load image
             const imageUrl = embeddings?.image?.data?.image_url;
